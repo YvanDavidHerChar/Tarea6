@@ -4,11 +4,11 @@
 #include <string.h>
 
 #define pi  3.141592653589793
-#define c   300000000
-#define Rt  6378100
-#define m   (1.67262177*pow(10,-27))
-#define e   (1.602176287*pow(10, -19))
-#define Bo  (3*pow(10,-5))
+#define c   300000000.0
+#define Rt  6378100.0
+#define m   (1.67262177*pow(10.,-27.))
+#define e   (1.602176287*pow(10., -19))
+#define Bo  (3.*pow(10.,-5.))
 
 float* crearVector(float v1, float v2, float v3)
 {
@@ -28,7 +28,7 @@ float  magnitud( float* vector)
 {
   int i;
   float suma = 0;
-  float resultado;
+  float resultado = 0;
 
   suma =  pow(vector[0],2) + pow(vector[1],2) + pow(vector[2],2);
 
@@ -45,27 +45,24 @@ void copy(float *origen, float *destino, int n_puntos){
   }
 }
 
-float* calcularAceleracion(float* pos , float* vel)
+float* calcularAceleracion(float* pos , float* vel,float gamma)
 {
   float* acel;
   float constante;
-  float gamma;
-  float gammaPrima;
   float r;
   int i;
 
   acel = crearVector(0,0,0);
-  gamma = (1/sqrt(1-pow(magnitud(vel),2)/pow(c,2)));
-  gammaPrima = magnitud(vel)/(pow(c,2)*pow((1-pow(magnitud(vel),2)/pow(c,2)),3/2));
   r = magnitud(pos);
-  constante = ((Bo*pow(Rt,3)*e)/(pow(r,5)*gamma*m));
-  acel[0] = -1*constante*(vel[1]*(2*pos[2]*pos[2] - pos[0]*pos[0] - pos[1]*pos[1]) - 3*vel[2]*pos[0]*pos[2]) - (gammaPrima/gamma)*vel[0];
-  acel[1] = constante*(vel[0]*(2*pos[2]*pos[2] - pos[0]*pos[0] - pos[1]*pos[1]) - 3*vel[2]*pos[0]*pos[2]) - (gammaPrima/gamma)*vel[1];
-  acel[2] = -1*constante*(vel[0]*3*pos[2]*pos[1] - vel[1]*3*pos[0]*pos[2]) - gammaPrima/gamma*vel[2];
+  constante = -((Bo*pow(Rt,3)*e)/(pow(r,5)*gamma*m));
+  acel[0] = constante*(vel[1]*(2*pos[2]*pos[2] - pos[0]*pos[0] - pos[1]*pos[1]) - 3*vel[2]*pos[0]*pos[2]);
+  acel[1] = -1*constante*(vel[0]*(2*pos[2]*pos[2] - pos[0]*pos[0] - pos[1]*pos[1]) - 3*vel[2]*pos[0]*pos[2]);
+  acel[2] = constante*(vel[0]*3*pos[2]*pos[1] - vel[1]*3*pos[0]*pos[2]);
+
   return acel;
 }
 
-void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float energia, float angulo)
+void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float energia, float angulo, float gamma)
 {
   //Creamos e inicializamos todas las variables
   FILE *in;
@@ -108,7 +105,7 @@ void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float en
   fprintf(in, "%d %f %f %f\n", 0, elVectorX[0], elVectorX[1], elVectorX[2]); 
   fclose(in);
 
-  for(i=0 ; i<2 ; i++)
+  for(i=0 ; i<iteraciones ; i++)
     {
       //Comienzo
       k1x = elVectorX[0];
@@ -117,7 +114,7 @@ void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float en
       k1vx = elVectorV[0];
       k1vy = elVectorV[1];
       k1vz = elVectorV[2];
-      aceleracion1 = calcularAceleracion(elVectorX, elVectorV);
+      aceleracion1 = calcularAceleracion(elVectorX, elVectorV, gamma);
   
     //Segundo Paso
       pos2[0] = elVectorX[0] + 0.5*paso*k1vx;
@@ -126,7 +123,7 @@ void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float en
       vel2[0] = elVectorV[0] + 0.5*paso*aceleracion1[0];
       vel2[1] = elVectorV[1] + 0.5*paso*aceleracion1[1];
       vel2[2] = elVectorV[2] + 0.5*paso*aceleracion1[2];
-      aceleracion2 = calcularAceleracion(pos2, vel2);
+      aceleracion2 = calcularAceleracion(pos2, vel2, gamma);
 
       //Tercer Paso
       pos3[0] = elVectorX[0] + 0.5*paso*vel2[0];
@@ -135,7 +132,7 @@ void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float en
       vel3[0] = elVectorV[0] + 0.5*paso*aceleracion2[0];
       vel3[1] = elVectorV[1] + 0.5*paso*aceleracion2[1];
       vel3[2] = elVectorV[2] + 0.5*paso*aceleracion2[2];
-      aceleracion3 = calcularAceleracion(pos3,vel3);
+      aceleracion3 = calcularAceleracion(pos3,vel3, gamma);
 
       //Cuarto Paso
       pos4[0] = elVectorX[0] + paso*vel3[0];
@@ -144,7 +141,7 @@ void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float en
       vel4[0] = elVectorV[0] + paso*aceleracion3[0];
       vel4[1] = elVectorV[1] + paso*aceleracion3[1];
       vel4[2] = elVectorV[2] + paso*aceleracion3[2];
-      aceleracion4 = calcularAceleracion(pos4,vel4);
+      aceleracion4 = calcularAceleracion(pos4,vel4, gamma);
 
       //Hacemos el Promedio
       elVectorFinalX[0] = elVectorX[0] + paso*(k1x + 2*pos2[0] + 2*pos3[0] + pos4[0])/6;
@@ -156,7 +153,7 @@ void RungeKutta(float* posI , float* velI, int iteraciones, float paso, float en
      
       //Escribimos en el archivo final
       in = fopen(filename,"a");   
-      fprintf(in, "%d %f %f %f\n", i, elVectorFinalX[0], elVectorFinalX[1], elVectorFinalX[2]); 
+      fprintf(in, "%d %f %f %f\n", (i+1), elVectorFinalX[0], elVectorFinalX[1], elVectorFinalX[2]); 
       fclose(in);
       //Copiamos para volver a iterar
       copy(elVectorFinalX , elVectorX,3);
@@ -175,17 +172,20 @@ int main(int argc, char **argv)
   float energia;
   float nuevaEnergia;
   float v;
-
-  paso = 0.1;
+  float gamma;
+ 
+ 
   energia = atof(argv[1]);
   angulo = atof(argv[2]); 
-  numeroDePuntos = 100/paso;
   angulo = angulo*pi/180;
   nuevaEnergia = energia*e*pow(10.0,6);
-  //v = sqrt(c*c*(1-(((m*c*c)/(energia+m*c*c))*((m*c*c)/(energia+m*c*c)))));
+  gamma = nuevaEnergia/(m*c*c)+1 ; 
+  paso = 2*pi*gamma*m/(50*e*Bo);
+  numeroDePuntos = 300000;
+  v = sqrt(c*c*(1-(((m*c*c)/(nuevaEnergia+m*c*c))*((m*c*c)/(nuevaEnergia+m*c*c)))));
   posI = crearVector(2*Rt,0,0);
   velI = crearVector(0,v*sin(angulo), v*cos(angulo));
-  printf("%d\n", pow(10,-27));
-  //RungeKutta(posI , velI, numeroDePuntos, paso, energia, angulo);
+
+  RungeKutta(posI , velI, numeroDePuntos, paso, energia, angulo, gamma);
   return 0;
 }
